@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Турнир 12 команд</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Manrope:wght@400;600;700&display=swap">
+<style id="css">
+body{margin:0;font:14px/1.4 system-ui,sans-serif}
+
+/* Layout: header with live status, 4 group cards in a grid, then upper / lower / final bracket bands that scroll sideways; owner gets a sticky save bar */
+:root{
+  --bg:#eef0f3; --panel:#ffffff; --line:#d5d9e0; --fg:#1b2130; --muted:#667085;
+  --accent:#b8322a; --win:#1f7a4d; --winbg:#e3f3ea; --lose:#9aa1ad;
+  --display:"Chakra Petch", "Arial Narrow", sans-serif;
+  --body:"Manrope", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12151c; --panel:#1b202a; --line:#2c3341; --fg:#e8ebf1; --muted:#8b93a3;
+  --accent:#e2574c; --win:#5fd197; --winbg:#173327; --lose:#5b6372; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151c; --panel:#1b202a; --line:#2c3341; --fg:#e8ebf1; --muted:#8b93a3;
+  --accent:#e2574c; --win:#5fd197; --winbg:#173327; --lose:#5b6372; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 90px}
+h1{font-family:var(--display);font-size:30px;margin:0;letter-spacing:.02em;text-wrap:balance}
+.head{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between;margin-bottom:4px}
+.status{font:600 12px var(--body);color:var(--muted);display:flex;gap:8px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--win)}
+.mode{font:700 11px var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:2px 6px}
+.sub{color:var(--muted);margin:6px 0 22px;font-size:13px;max-width:70ch}
+.section{font:700 13px var(--display);letter-spacing:.14em;text-transform:uppercase;margin:0 0 12px;display:flex;gap:8px;align-items:center}
+.section::before{content:"";width:10px;height:10px;background:var(--accent);display:inline-block}
+.section.lower::before{background:var(--muted)}
+.groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin-bottom:30px}
+.group{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.group h3{font:700 16px var(--display);margin:0;display:flex;justify-content:space-between;align-items:baseline}
+.group h3 small{font:600 11px var(--body);color:var(--muted)}
+table.st{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.st td{padding:5px 4px;border-top:1px solid var(--line)}
+.st tr:first-child td{border-top:none}
+.st td.n{width:18px;color:var(--muted);font-family:var(--display)}
+.st td.w{text-align:right;width:44px;font-family:var(--display);font-weight:700}
+.st tr.q td:nth-child(2){font-weight:700}
+.st tr.q td.n{color:var(--win)}
+.gm{display:flex;flex-direction:column;gap:6px}
+.gmatch{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;font-size:12px}
+.gmatch .vs{color:var(--muted);font:700 10px var(--display)}
+.pick{font:600 12px var(--body);padding:6px 8px;border:1px solid var(--line);border-radius:5px;background:transparent;color:var(--fg);text-align:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+button.pick{cursor:pointer}
+.pick.won{background:var(--winbg);border-color:var(--win);color:var(--win);font-weight:700}
+.pick.lost{color:var(--lose);text-decoration:line-through}
+details.roster summary{cursor:pointer;font-size:12px;color:var(--muted)}
+.roster ul{margin:6px 0 0;padding:0;list-style:none;display:grid;gap:8px}
+.roster li b{font-size:12px}
+.roster li span{display:block;font-size:12px;color:var(--muted);word-break:break-word}
+.seeds{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:22px}
+.seed{display:flex;flex-direction:column;gap:4px}
+.seed label{font:700 11px var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.seed input{font:600 14px var(--body);padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg);min-width:0}
+.scroll{overflow-x:auto;padding-bottom:8px;margin-bottom:24px}
+.band{display:flex;gap:22px;min-width:max-content}
+.col{display:flex;flex-direction:column;width:200px}
+.col.wide{width:240px}
+.col h4{font:700 11px var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;height:14px}
+.col .stack{display:flex;flex-direction:column;justify-content:space-around;flex:1;gap:14px}
+.match{background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.match.gf{border-color:var(--accent)}
+.mid{font:700 10px var(--display);letter-spacing:.08em;color:var(--muted);padding:4px 8px;border-bottom:1px solid var(--line)}
+.row{display:flex;align-items:center;border-top:1px solid var(--line)}
+.mid + .row{border-top:none}
+.team{flex:1;min-width:0;text-align:left;font:600 13px var(--body);background:none;border:none;color:var(--fg);padding:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+button.team{cursor:pointer}
+.team.tbd{color:var(--muted);font-weight:400;font-style:italic}
+.row.won{background:var(--winbg)} .row.won .team{color:var(--win);font-weight:700}
+.row.lost .team{color:var(--lose);text-decoration:line-through}
+.score{width:34px;font:700 13px var(--display);text-align:center;border:none;border-left:1px solid var(--line);background:transparent;color:var(--fg);padding:8px 2px;font-variant-numeric:tabular-nums}
+.champ{margin-top:10px;font:700 15px var(--display);color:var(--accent);letter-spacing:.04em;min-height:20px}
+.hint{color:var(--muted);font-size:12px;margin:-4px 0 10px}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);
+  padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));
+  display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.bar .msg{margin-right:auto;font-size:13px;color:var(--muted)}
+.btn{font:700 13px var(--body);border-radius:6px;padding:9px 14px;cursor:pointer;border:1px solid var(--accent)}
+.btn.primary{background:var(--accent);color:var(--panel)}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:disabled{opacity:.5;cursor:default}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:no-preference){.row,.pick{transition:background .15s}}
+</style>
+</head>
+<body>
+
+<div id="app"><p class="sub">Загрузка турнира…</p></div>
+
+<script type="application/json" id="data">{"names":["","","","","","","",""],"gres":{},"win":{},"score":{},"updated":null}</script>
+
+<script>
+(function(){
+/* Если сайт лежит не на github.io, впиши сюда свой ник на GitHub и имя репозитория */
+const CONFIG={owner:"",repo:"",branch:"main",file:"data.json"};
+
+const GROUPS=[
+ {id:"A",teams:[
+  {n:"Петли",avg:3840,p:["Kekvu 5900","GOTY97 3500","dfghjzxwr 5000","evildealller 4000","Chncshez 800"]},
+  {n:"гвозди",avg:2525,p:["D1nons турбо","nikonor100 900","G0DC0MPL3X 3400","Treb0rr 2400","Isisidndnn 3400"]},
+  {n:"хулиганы",avg:1367,p:["vergeilboss 1500","lil_snd_cld турбо","Lolkik92 600","twonumberrr турбо","afokot 2000"]}]},
+ {id:"B",teams:[
+  {n:"Pandarens",avg:3580,p:["letmedie09 5800","hh4v3 3600","Garyk5 3500","riqwell 3000","lananeDelrey13 2000"]},
+  {n:"живые",avg:2210,p:["stillnesqf 1700","quu111 750","cequju 2700","bl0odytearss 2900","Sergejmavrod1 3000"]},
+  {n:"komarik[i]",avg:2125,p:["ung_prince 4000","monkebrad 1500","hawive 1500","ViNGER2312 1500","5-й игрок ?"]}]},
+ {id:"C",teams:[
+  {n:"altyshki",avg:3340,p:["Dfu67 3000","Sfy201 6000","ExPont23 6000","cherep909 1000","S0S0_G1Z1 700"]},
+  {n:"кастрюли",avg:2760,p:["CBET08 2800","tri228 2500","qpaa_123 2500","OkuniZXC 2000","nname322 4000"]},
+  {n:"Адские гончие",avg:1767,p:["Vich_doctor 1100","Fujiromasuna турбо","frolchic 1200","Mimus096 турбо","ggeplr 3000"]}]},
+ {id:"D",teams:[
+  {n:"вобла",avg:3200,p:["Stariy_Bog113 турбо","yarchevv 4500","legit_BOB154 800","w0jite 3000","Kimkardashyang 4500"]},
+  {n:"SENSEY",avg:3120,p:["pashok 3900","sanek 3000","odnoklassnik 2500","odnoklassnik2 2200","odnogruuuupnik 4000"]},
+  {n:"шпек",avg:1463,p:["Pooosos 1500","tiuqc 2000","Ajner2 2000","pqwram 450","Fedor_Crukow 1367"]}]}
+];
+const PAIRS=[[0,1],[0,2],[1,2]];
+const SLOTS=["A1","B2","B1","A2","C1","D2","D1","C2"];
+const M={
+ W1:{a:{s:0},b:{s:1}}, W2:{a:{s:2},b:{s:3}}, W3:{a:{s:4},b:{s:5}}, W4:{a:{s:6},b:{s:7}},
+ W5:{a:["W1","w"],b:["W2","w"]}, W6:{a:["W3","w"],b:["W4","w"]}, W7:{a:["W5","w"],b:["W6","w"]},
+ L1:{a:["W1","l"],b:["W2","l"]}, L2:{a:["W3","l"],b:["W4","l"]},
+ L3:{a:["L1","w"],b:["W6","l"]}, L4:{a:["L2","w"],b:["W5","l"]},
+ L5:{a:["L3","w"],b:["L4","w"]}, L6:{a:["L5","w"],b:["W7","l"]},
+ GF:{a:["W7","w"],b:["L6","w"]}
+};
+const LAYOUT={
+ upper:[["1/4 финала",["W1","W2","W3","W4"]],["Полуфинал",["W5","W6"]],["Финал верхней",["W7"]]],
+ lower:[["Раунд 1",["L1","L2"]],["Раунд 2",["L3","L4"]],["Раунд 3",["L5"]],["Финал нижней",["L6"]]],
+ final:[["Гранд-финал",["GF"]]]
+};
+const LABEL={W1:"Матч 1",W2:"Матч 2",W3:"Матч 3",W4:"Матч 4",W5:"Матч 5",W6:"Матч 6",W7:"Матч 7",
+ L1:"Нижняя 1",L2:"Нижняя 2",L3:"Нижняя 3",L4:"Нижняя 4",L5:"Нижняя 5",L6:"Нижняя 6",GF:"Гранд-финал · Bo3"};
+const GFTXT=["Победитель верхней сетки","Победитель нижней сетки"];
+
+const initial=JSON.parse(document.getElementById("data").textContent);
+let saved=JSON.parse(JSON.stringify(initial));
+let st=JSON.parse(JSON.stringify(saved));
+let canWrite=false, dirty=false, busy=false, note="", sha=null, needLogin=false, loginErr="";
+const TKEY="tourney12-token";
+const ls={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+
+function detectRepo(){
+  let owner=CONFIG.owner, repo=CONFIG.repo;
+  const h=location.hostname;
+  if(!owner && h.endsWith(".github.io")){
+    owner=h.split(".")[0];
+    const seg=location.pathname.split("/").filter(Boolean)[0];
+    repo=seg && !seg.includes(".") ? seg : h;
+  }
+  return owner&&repo?{owner,repo}:null;
+}
+const R=detectRepo();
+const api=p=>`https://api.github.com/repos/${R.owner}/${R.repo}/${p}`;
+const b64enc=s=>btoa(unescape(encodeURIComponent(s)));
+const b64dec=s=>decodeURIComponent(escape(atob(s.replace(/\n/g,""))));
+
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function standings(g){
+  const rows=g.teams.map((t,i)=>({i,n:t.n,w:0,l:0}));
+  let done=0;
+  PAIRS.forEach((p,m)=>{const r=st.gres[g.id+m];if(r===0||r===1){done++;rows[p[r]].w++;rows[p[1-r]].l++}});
+  const sorted=rows.slice().sort((a,b)=>b.w-a.w||a.i-b.i);
+  const clear=done===3&&!(sorted[0].w===sorted[1].w||sorted[1].w===sorted[2].w);
+  return {sorted,done,clear};
+}
+function autoSeed(i){
+  const g=GROUPS.find(x=>x.id===SLOTS[i][0]);const s=standings(g);
+  return s.clear?s.sorted[+SLOTS[i][1]-1].n:"";
+}
+const nm=i=>(st.names[i]||"").trim()||autoSeed(i)||null;
+function sideOf(src){
+  if(src.s!==undefined) return nm(src.s);
+  const [id,k]=src;const p=parts(id);const w=winner(id);
+  if(!w) return null;
+  return k==="w"?w:(p[0]===w?p[1]:p[0]);
+}
+function parts(id){return [sideOf(M[id].a),sideOf(M[id].b)]}
+function winner(id){const w=st.win[id];if(!w)return null;const p=parts(id);return (p[0]&&p[1]&&p.includes(w))?w:null}
+function srcText(id,k){
+  if(id==="GF") return GFTXT[k];
+  const src=k?M[id].b:M[id].a;
+  if(src.s!==undefined) return SLOTS[src.s];
+  return (src[1]==="w"?"Победитель ":"Проигравший ")+LABEL[src[0]].replace("Матч ","м.").replace("Нижняя ","н.");
+}
+function fmtTime(iso){if(!iso)return "ещё не обновлялся";try{return "обновлено "+new Date(iso).toLocaleString("ru-RU",{day:"numeric",month:"long",hour:"2-digit",minute:"2-digit"})}catch(e){return ""}}
+
+function groupHTML(g){
+  const s=standings(g);
+  const tbl=s.sorted.map((r,k)=>`<tr class="${s.clear&&k<2?"q":""}"><td class="n">${k+1}</td><td>${esc(r.n)}</td><td class="w">${r.w}–${r.l}</td></tr>`).join("");
+  const ms=PAIRS.map((p,m)=>{
+    const r=st.gres[g.id+m];
+    const cell=k=>{const cls="pick"+(r===k?" won":(r===0||r===1)?" lost":"");const t=esc(g.teams[p[k]].n);
+      return canWrite?`<button type="button" class="${cls}" data-g="${g.id+m}" data-k="${k}">${t}</button>`:`<span class="${cls}">${t}</span>`};
+    return `<div class="gmatch">${cell(0)}<span class="vs">VS</span>${cell(1)}</div>`;
+  }).join("");
+  const roster=g.teams.map(t=>`<li><b>${esc(t.n)}</b> · ср. ${t.avg}<span>${t.p.map(x=>"@"+esc(x)).join(", ")}</span></li>`).join("");
+  return `<div class="group"><h3>Группа ${g.id}<small>${s.done}/3 матчей</small></h3>
+   <table class="st"><tbody>${tbl}</tbody></table>
+   <div class="gm">${ms}</div>
+   <details class="roster"><summary>Составы</summary><ul>${roster}</ul></details></div>`;
+}
+function matchHTML(id){
+  const p=parts(id),w=winner(id),ready=!!(p[0]&&p[1]);
+  const rows=[0,1].map(k=>{
+    const t=p[k];const cls="row"+(w&&t===w?" won":w&&t?" lost":"");
+    const label=t?esc(t):esc(srcText(id,k));const tcls="team"+(t?"":" tbd");
+    const team=(canWrite&&ready)?`<button type="button" class="${tcls}" data-m="${id}" data-k="${k}">${label}</button>`:`<span class="${tcls}">${label}</span>`;
+    const sv=esc((st.score[id]||[])[k]||"");
+    const score=canWrite?`<input class="score" id="sc-${id}-${k}" data-s="${id}" data-k="${k}" inputmode="numeric" maxlength="2" aria-label="Счёт" value="${sv}">`:`<span class="score">${sv||"&nbsp;"}</span>`;
+    return `<div class="${cls}">${team}${score}</div>`;
+  }).join("");
+  return `<div class="match${id==="GF"?" gf":""}"><div class="mid">${LABEL[id]}</div>${rows}</div>`;
+}
+function bandHTML(band){
+  return LAYOUT[band].map(([title,ids])=>{
+    let h=`<div class="col${band==="final"?" wide":""}"><h4>${title}</h4><div class="stack">${ids.map(matchHTML).join("")}</div>`;
+    if(ids[0]==="GF"){const w=winner("GF");h+=`<div class="champ">${w?"🏆 Чемпион: "+esc(w):""}</div>`}
+    return h+"</div>";
+  }).join("");
+}
+function render(){
+  const app=document.getElementById("app");
+  const focus=document.activeElement&&document.activeElement.id;
+  const seeds=canWrite?`<div class="seeds">${SLOTS.map((s,i)=>`<div class="seed"><label for="seed${i}">Слот ${s}</label><input id="seed${i}" data-seed="${i}" maxlength="30" placeholder="${esc(autoSeed(i)||s)}" value="${esc(st.names[i]||"")}"></div>`).join("")}</div>`:"";
+  app.innerHTML=`
+  <div class="head"><h1>Турнир 12 команд</h1>
+   <div class="status">${canWrite?'<span class="mode">Режим организатора</span>':'<span class="dot"></span>'}<span>${esc(fmtTime(saved.updated))}</span></div></div>
+  <p class="sub">${canWrite
+   ?"Ты видишь страницу как организатор. Отмечай победителей кликом по команде, повторный клик отменяет. Изменения увидят все после кнопки «Опубликовать»."
+   :"Страница обновляется сама, когда организатор вносит результаты."}</p>
+  <h2 class="section">Групповой этап</h2>
+  <div class="groups">${GROUPS.map(groupHTML).join("")}</div>
+  <h2 class="section">Плей-офф · верхняя сетка</h2>
+  ${canWrite?'<p class="hint">Слоты плей-офф заполняются сами, когда группа сыграна. Если в группе ничья по победам (1–1–1), впиши команду вручную.</p>'+seeds:""}
+  <div class="scroll"><div class="band">${bandHTML("upper")}</div></div>
+  <h2 class="section lower">Нижняя сетка</h2>
+  <div class="scroll"><div class="band">${bandHTML("lower")}</div></div>
+  <h2 class="section">Финал</h2>
+  <p class="hint">Победитель верхней сетки против победителя нижней.</p>
+  <div class="scroll"><div class="band">${bandHTML("final")}</div></div>
+  ${canWrite?`<div class="bar"><span class="msg">${esc(note||(dirty?"Есть неопубликованные изменения":"Всё опубликовано"))}</span>
+   <button type="button" class="btn ghost" id="undo" ${dirty&&!busy?"":"disabled"}>Отменить правки</button>
+   <button type="button" class="btn primary" id="pub" ${dirty&&!busy?"":"disabled"}>${busy?"Публикую…":"Опубликовать"}</button></div>`:""}`;
+  if(focus){const el=document.getElementById(focus);if(el&&el.tagName==="INPUT"){el.focus();const v=el.value.length;try{el.setSelectionRange(v,v)}catch(e){}}}
+}
+
+function change(){dirty=true;note="";draw()}
+
+function loginHTML(){
+  return `<div class="head"><h1>Вход для организатора</h1></div>
+  <p class="sub">Вставь токен GitHub с правом записи в репозиторий${R?` <b>${esc(R.owner)}/${esc(R.repo)}</b>`:""}. Он сохранится только в этом браузере.</p>
+  ${R?"":`<p class="sub" style="color:var(--accent)">Не понял, в каком репозитории лежит сайт. Впиши owner и repo в CONFIG в начале скрипта.</p>`}
+  <div class="seeds" style="max-width:520px"><div class="seed"><label for="tok">Токен</label><input id="tok" type="password" autocomplete="off" placeholder="github_pat_…"></div></div>
+  ${loginErr?`<p class="sub" style="color:var(--accent)">${esc(loginErr)}</p>`:""}
+  <div style="display:flex;gap:10px;flex-wrap:wrap"><button type="button" class="btn primary" id="login">Войти</button>
+  <button type="button" class="btn ghost" id="asviewer">Смотреть как зритель</button></div>`;
+}
+function draw(){
+  if(needLogin){document.getElementById("app").innerHTML=loginHTML();return}
+  render();
+  if(canWrite){const bar=document.querySelector(".bar");if(bar){const b=document.createElement("button");b.type="button";b.className="btn ghost";b.id="logout";b.textContent="Выйти";bar.insertBefore(b,bar.children[1])}}
+}
+
+async function gh(path,opts={}){
+  const tok=ls.get(TKEY);
+  const headers={"Accept":"application/vnd.github+json"};
+  if(tok&&canWrite||opts.auth) headers.Authorization="Bearer "+(opts.auth||tok);
+  if(opts.body) headers["Content-Type"]="application/json";
+  const r=await fetch(api(path),{method:opts.method||"GET",headers,body:opts.body,cache:"no-store"});
+  return r;
+}
+async function load(){
+  if(!R||dirty||busy) return;
+  try{
+    let data=null;
+    const r=await gh(`contents/${CONFIG.file}?ref=${CONFIG.branch}&t=${Date.now()}`);
+    if(r.ok){const j=await r.json();sha=j.sha;data=JSON.parse(b64dec(j.content))}
+    else if(r.status===404){sha=null}
+    else{
+      const r2=await fetch(`https://raw.githubusercontent.com/${R.owner}/${R.repo}/${CONFIG.branch}/${CONFIG.file}?t=${Date.now()}`,{cache:"no-store"});
+      if(r2.ok) data=await r2.json();
+    }
+    if(data&&!dirty&&!busy&&data.updated!==saved.updated){saved=data;st=JSON.parse(JSON.stringify(data));draw()}
+  }catch(e){}
+}
+async function publish(){
+  if(busy) return;
+  busy=true;draw();
+  const next=Object.assign({},st,{updated:new Date().toISOString()});
+  try{
+    const r0=await gh(`contents/${CONFIG.file}?ref=${CONFIG.branch}&t=${Date.now()}`);
+    if(r0.ok) sha=(await r0.json()).sha; else if(r0.status===404) sha=null;
+    const body={message:"Результаты турнира",content:b64enc(JSON.stringify(next,null,1)),branch:CONFIG.branch};
+    if(sha) body.sha=sha;
+    const r=await gh(`contents/${CONFIG.file}`,{method:"PUT",body:JSON.stringify(body)});
+    if(r.ok){const j=await r.json();sha=j.content&&j.content.sha;saved=next;st=JSON.parse(JSON.stringify(next));dirty=false;note="Опубликовано. У зрителей обновится в течение минуты"}
+    else if(r.status===401||r.status===403){note="Токен не подходит или у него нет права записи. Нажми «Выйти» и войди заново"}
+    else if(r.status===409){note="Файл изменился, попробуй опубликовать ещё раз"}
+    else note="Не получилось опубликовать (ошибка "+r.status+"), попробуй ещё раз";
+  }catch(e){note="Нет связи с GitHub, проверь интернет"}
+  busy=false;draw();
+}
+async function tryLogin(tok){
+  loginErr="";
+  if(!R){loginErr="Сначала укажи репозиторий в CONFIG";return draw()}
+  try{
+    const r=await gh("",{auth:tok});
+    if(!r.ok){loginErr="GitHub не принял токен ("+r.status+"). Проверь, что он создан для этого репозитория";return draw()}
+    const j=await r.json();
+    if(j.permissions&&j.permissions.push===false){loginErr="У токена нет права записи. Дай ему Contents: Read and write";return draw()}
+    ls.set(TKEY,tok);needLogin=false;canWrite=true;draw();
+  }catch(e){loginErr="Нет связи с GitHub";draw()}
+}
+
+document.addEventListener("click",e=>{
+  const id=e.target.id;
+  if(id==="login"){const v=document.getElementById("tok").value.trim();if(v)tryLogin(v);return}
+  if(id==="asviewer"){needLogin=false;history.replaceState(null,"",location.pathname);return draw()}
+  if(id==="logout"){ls.del(TKEY);canWrite=false;dirty=false;st=JSON.parse(JSON.stringify(saved));history.replaceState(null,"",location.pathname);return draw()}
+  if(!canWrite) return;
+  const g=e.target.closest("[data-g]");
+  if(g){const k=+g.dataset.k;st.gres[g.dataset.g]=st.gres[g.dataset.g]===k?null:k;return change()}
+  const m=e.target.closest("button[data-m]");
+  if(m){const mid=m.dataset.m;const t=parts(mid)[+m.dataset.k];st.win[mid]=st.win[mid]===t?null:t;return change()}
+  if(id==="undo"){st=JSON.parse(JSON.stringify(saved));dirty=false;note="";return draw()}
+  if(id==="pub") publish();
+});
+document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="tok"){const v=e.target.value.trim();if(v)tryLogin(v)}});
+document.addEventListener("input",e=>{
+  if(!canWrite) return;
+  const t=e.target;
+  if(t.dataset.seed!==undefined){st.names[+t.dataset.seed]=t.value;dirty=true;note="";draw()}
+  else if(t.dataset.s){st.score[t.dataset.s]=st.score[t.dataset.s]||["",""];st.score[t.dataset.s][+t.dataset.k]=t.value;dirty=true;note="";draw()}
+});
+window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue=""}});
+
+if(location.hash==="#admin"){ if(ls.get(TKEY)) canWrite=true; else needLogin=true; }
+draw();
+load();
+setInterval(load,60000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)load()});
+})();
+</script>
+</body>
+</html>
