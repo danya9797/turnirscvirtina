@@ -309,6 +309,7 @@ async function publish(){
 async function tryLogin(tok){
   loginErr="";
   if(!R){loginErr="Сначала укажи репозиторий в CONFIG";return draw()}
+  if(!/^[\x21-\x7e]+$/.test(tok)||!/^(github_pat_|ghp_)/.test(tok)){loginErr="Это не похоже на токен GitHub. Токен — длинная строка из латинских букв и цифр, начинается с github_pat_. Создай его на GitHub: Settings → Developer settings → Personal access tokens → Fine-grained tokens";return draw()}
   try{
     const r=await gh("",{auth:tok});
     if(!r.ok){loginErr="GitHub не принял токен ("+r.status+"). Проверь, что он создан для этого репозитория";return draw()}
