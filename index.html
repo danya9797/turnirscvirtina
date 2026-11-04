@@ -155,7 +155,7 @@ function detectRepo(){
   return owner&&repo?{owner,repo}:null;
 }
 const R=detectRepo();
-const api=p=>`https://api.github.com/repos/${R.owner}/${R.repo}/${p}`;
+const api=p=>`https://api.github.com/repos/${R.owner}/${R.repo}`+(p?"/"+p:"");
 const b64enc=s=>btoa(unescape(encodeURIComponent(s)));
 const b64dec=s=>decodeURIComponent(escape(atob(s.replace(/\n/g,""))));
 
@@ -316,7 +316,7 @@ async function tryLogin(tok){
     const j=await r.json();
     if(j.permissions&&j.permissions.push===false){loginErr="У токена нет права записи. Дай ему Contents: Read and write";return draw()}
     ls.set(TKEY,tok);needLogin=false;canWrite=true;draw();
-  }catch(e){loginErr="Нет связи с GitHub";draw()}
+  }catch(e){loginErr="Не удалось связаться с GitHub ("+(e&&e.message||"ошибка сети")+"). Выключи блокировщик рекламы или VPN и попробуй ещё раз";draw()}
 }
 
 document.addEventListener("click",e=>{
