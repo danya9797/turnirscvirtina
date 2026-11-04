@@ -276,14 +276,16 @@ async function gh(path,opts={}){
   return r;
 }
 async function load(){
-  if(!R||dirty||busy) return;
+  if(dirty||busy) return;
   try{
     let data=null;
-    const r=await gh(`contents/${CONFIG.file}?ref=${CONFIG.branch}&t=${Date.now()}`);
-    if(r.ok){const j=await r.json();sha=j.sha;data=JSON.parse(b64dec(j.content))}
-    else if(r.status===404){sha=null}
-    else{
-      const r2=await fetch(`https://raw.githubusercontent.com/${R.owner}/${R.repo}/${CONFIG.branch}/${CONFIG.file}?t=${Date.now()}`,{cache:"no-store"});
+    if(canWrite&&R){
+      const r=await gh(`contents/${CONFIG.file}?ref=${CONFIG.branch}&t=${Date.now()}`);
+      if(r.ok){const j=await r.json();sha=j.sha;data=JSON.parse(b64dec(j.content))}
+      else if(r.status===404){sha=null}
+    }
+    if(!data){
+      const r2=await fetch(`${CONFIG.file}?t=${Date.now()}`,{cache:"no-store"});
       if(r2.ok) data=await r2.json();
     }
     if(data&&!dirty&&!busy&&data.updated!==saved.updated){saved=data;st=JSON.parse(JSON.stringify(data));draw()}
@@ -315,8 +317,8 @@ async function tryLogin(tok){
     if(!r.ok){loginErr="GitHub не принял токен ("+r.status+"). Проверь, что он создан для этого репозитория";return draw()}
     const j=await r.json();
     if(j.permissions&&j.permissions.push===false){loginErr="У токена нет права записи. Дай ему Contents: Read and write";return draw()}
-    ls.set(TKEY,tok);needLogin=false;canWrite=true;draw();
-  }catch(e){loginErr="Не удалось связаться с GitHub ("+(e&&e.message||"ошибка сети")+"). Выключи блокировщик рекламы или VPN и попробуй ещё раз";draw()}
+    ls.set(TKEY,tok);needLogin=false;canWrite=true;draw();load();
+  }catch(e){ls.set(TKEY,tok);needLogin=false;canWrite=true;note="Токен сохранён, но проверить его не вышло. Если при публикации будет ошибка, войди заново";draw()}
 }
 
 document.addEventListener("click",e=>{
