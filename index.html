@@ -232,7 +232,7 @@ function render(){
   <div class="head"><h1>Турнир 12 команд</h1>
    <div class="status">${canWrite?'<span class="mode">Режим организатора</span>':'<span class="dot"></span>'}<span>${esc(fmtTime(saved.updated))}</span></div></div>
   <p class="sub">${canWrite
-   ?"Ты видишь страницу как организатор. Отмечай победителей кликом по команде, повторный клик отменяет. Изменения увидят все после кнопки «Опубликовать»."
+   ?"Ты видишь страницу как организатор. Отмечай победителей кликом по команде, повторный клик отменяет. Когда внесёшь результаты, нажми «Скачать data.json» и загрузи этот файл на GitHub, тогда их увидят все."
    :"Страница обновляется сама, когда организатор вносит результаты."}</p>
   <h2 class="section">Групповой этап</h2>
   <div class="groups">${GROUPS.map(groupHTML).join("")}</div>
@@ -244,110 +244,67 @@ function render(){
   <h2 class="section">Финал</h2>
   <p class="hint">Победитель верхней сетки против победителя нижней.</p>
   <div class="scroll"><div class="band">${bandHTML("final")}</div></div>
-  ${canWrite?`<div class="bar"><span class="msg">${esc(note||(dirty?"Есть неопубликованные изменения":"Всё опубликовано"))}</span>
-   <button type="button" class="btn ghost" id="undo" ${dirty&&!busy?"":"disabled"}>Отменить правки</button>
-   <button type="button" class="btn primary" id="pub" ${dirty&&!busy?"":"disabled"}>${busy?"Публикую…":"Опубликовать"}</button></div>`:""}`;
+  ${canWrite?`<div class="bar"><span class="msg">${esc(note||(isDirty()?"Есть изменения, которых ещё нет на сайте":"Всё опубликовано"))}</span>
+   <button type="button" class="btn ghost" id="undo" ${isDirty()?"":"disabled"}>Отменить правки</button>
+   ${R?`<a class="btn ghost" href="https://github.com/${esc(R.owner)}/${esc(R.repo)}/upload/${CONFIG.branch}" target="_blank" rel="noopener" style="text-decoration:none">Открыть загрузку на GitHub</a>`:""}
+   <button type="button" class="btn primary" id="dl" ${isDirty()?"":"disabled"}>Скачать data.json</button></div>`:""}`;
   if(focus){const el=document.getElementById(focus);if(el&&el.tagName==="INPUT"){el.focus();const v=el.value.length;try{el.setSelectionRange(v,v)}catch(e){}}}
 }
 
-function change(){dirty=true;note="";draw()}
+function strip(o){const c=Object.assign({},o);delete c.updated;return JSON.stringify(c)}
+function isDirty(){return strip(st)!==strip(saved)}
+const DKEY="tourney12-draft";
+function keep(){if(canWrite)ls.set(DKEY,JSON.stringify(st))}
+function change(){note="";keep();draw()}
+function draw(){render()}
 
-function loginHTML(){
-  return `<div class="head"><h1>Вход для организатора</h1></div>
-  <p class="sub">Вставь токен GitHub с правом записи в репозиторий${R?` <b>${esc(R.owner)}/${esc(R.repo)}</b>`:""}. Он сохранится только в этом браузере.</p>
-  ${R?"":`<p class="sub" style="color:var(--accent)">Не понял, в каком репозитории лежит сайт. Впиши owner и repo в CONFIG в начале скрипта.</p>`}
-  <div class="seeds" style="max-width:520px"><div class="seed"><label for="tok">Токен</label><input id="tok" type="password" autocomplete="off" placeholder="github_pat_…"></div></div>
-  ${loginErr?`<p class="sub" style="color:var(--accent)">${esc(loginErr)}</p>`:""}
-  <div style="display:flex;gap:10px;flex-wrap:wrap"><button type="button" class="btn primary" id="login">Войти</button>
-  <button type="button" class="btn ghost" id="asviewer">Смотреть как зритель</button></div>`;
-}
-function draw(){
-  if(needLogin){document.getElementById("app").innerHTML=loginHTML();return}
-  render();
-  if(canWrite){const bar=document.querySelector(".bar");if(bar){const b=document.createElement("button");b.type="button";b.className="btn ghost";b.id="logout";b.textContent="Выйти";bar.insertBefore(b,bar.children[1])}}
-}
-
-async function gh(path,opts={}){
-  const tok=ls.get(TKEY);
-  const headers={"Accept":"application/vnd.github+json"};
-  if(tok&&canWrite||opts.auth) headers.Authorization="Bearer "+(opts.auth||tok);
-  if(opts.body) headers["Content-Type"]="application/json";
-  const r=await fetch(api(path),{method:opts.method||"GET",headers,body:opts.body,cache:"no-store"});
-  return r;
-}
 async function load(){
-  if(dirty||busy) return;
   try{
-    let data=null;
-    if(canWrite&&R){
-      const r=await gh(`contents/${CONFIG.file}?ref=${CONFIG.branch}&t=${Date.now()}`);
-      if(r.ok){const j=await r.json();sha=j.sha;data=JSON.parse(b64dec(j.content))}
-      else if(r.status===404){sha=null}
-    }
-    if(!data){
-      const r2=await fetch(`${CONFIG.file}?t=${Date.now()}`,{cache:"no-store"});
-      if(r2.ok) data=await r2.json();
-    }
-    if(data&&!dirty&&!busy&&data.updated!==saved.updated){saved=data;st=JSON.parse(JSON.stringify(data));draw()}
+    const r=await fetch(`${CONFIG.file}?t=${Date.now()}`,{cache:"no-store"});
+    if(!r.ok) return;
+    const data=await r.json();
+    if(!data||(data.updated||"")<=(saved.updated||"")) return;
+    const wasDirty=isDirty();
+    const same=strip(data)===strip(st);
+    saved=data;
+    if(!canWrite||!wasDirty){st=JSON.parse(JSON.stringify(data))}
+    if(canWrite&&same) note="Опубликовано, зрители видят эти результаты";
+    keep();draw();
   }catch(e){}
 }
-async function publish(){
-  if(busy) return;
-  busy=true;draw();
-  const next=Object.assign({},st,{updated:new Date().toISOString()});
-  try{
-    const r0=await gh(`contents/${CONFIG.file}?ref=${CONFIG.branch}&t=${Date.now()}`);
-    if(r0.ok) sha=(await r0.json()).sha; else if(r0.status===404) sha=null;
-    const body={message:"Результаты турнира",content:b64enc(JSON.stringify(next,null,1)),branch:CONFIG.branch};
-    if(sha) body.sha=sha;
-    const r=await gh(`contents/${CONFIG.file}`,{method:"PUT",body:JSON.stringify(body)});
-    if(r.ok){const j=await r.json();sha=j.content&&j.content.sha;saved=next;st=JSON.parse(JSON.stringify(next));dirty=false;note="Опубликовано. У зрителей обновится в течение минуты"}
-    else if(r.status===401||r.status===403){note="Токен не подходит или у него нет права записи. Нажми «Выйти» и войди заново"}
-    else if(r.status===409){note="Файл изменился, попробуй опубликовать ещё раз"}
-    else note="Не получилось опубликовать (ошибка "+r.status+"), попробуй ещё раз";
-  }catch(e){note="Нет связи с GitHub, проверь интернет"}
-  busy=false;draw();
-}
-async function tryLogin(tok){
-  loginErr="";
-  if(!R){loginErr="Сначала укажи репозиторий в CONFIG";return draw()}
-  if(!/^[\x21-\x7e]+$/.test(tok)||!/^(github_pat_|ghp_)/.test(tok)){loginErr="Это не похоже на токен GitHub. Токен — длинная строка из латинских букв и цифр, начинается с github_pat_. Создай его на GitHub: Settings → Developer settings → Personal access tokens → Fine-grained tokens";return draw()}
-  try{
-    const r=await gh("",{auth:tok});
-    if(!r.ok){loginErr="GitHub не принял токен ("+r.status+"). Проверь, что он создан для этого репозитория";return draw()}
-    const j=await r.json();
-    if(j.permissions&&j.permissions.push===false){loginErr="У токена нет права записи. Дай ему Contents: Read and write";return draw()}
-    ls.set(TKEY,tok);needLogin=false;canWrite=true;draw();load();
-  }catch(e){ls.set(TKEY,tok);needLogin=false;canWrite=true;note="Токен сохранён, но проверить его не вышло. Если при публикации будет ошибка, войди заново";draw()}
+function download(){
+  const next=Object.assign({},JSON.parse(JSON.stringify(st)),{updated:new Date().toISOString()});
+  const blob=new Blob([JSON.stringify(next,null,1)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="data.json";
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  st=next;keep();
+  note="Файл data.json скачан. Нажми «Открыть загрузку на GitHub», перетащи его туда и нажми Commit changes";
+  draw();
 }
 
 document.addEventListener("click",e=>{
   const id=e.target.id;
-  if(id==="login"){const v=document.getElementById("tok").value.trim();if(v)tryLogin(v);return}
-  if(id==="asviewer"){needLogin=false;history.replaceState(null,"",location.pathname);return draw()}
-  if(id==="logout"){ls.del(TKEY);canWrite=false;dirty=false;st=JSON.parse(JSON.stringify(saved));history.replaceState(null,"",location.pathname);return draw()}
   if(!canWrite) return;
   const g=e.target.closest("[data-g]");
   if(g){const k=+g.dataset.k;st.gres[g.dataset.g]=st.gres[g.dataset.g]===k?null:k;return change()}
   const m=e.target.closest("button[data-m]");
   if(m){const mid=m.dataset.m;const t=parts(mid)[+m.dataset.k];st.win[mid]=st.win[mid]===t?null:t;return change()}
-  if(id==="undo"){st=JSON.parse(JSON.stringify(saved));dirty=false;note="";return draw()}
-  if(id==="pub") publish();
+  if(id==="undo"){st=JSON.parse(JSON.stringify(saved));note="";keep();return draw()}
+  if(id==="dl") download();
 });
-document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="tok"){const v=e.target.value.trim();if(v)tryLogin(v)}});
 document.addEventListener("input",e=>{
   if(!canWrite) return;
   const t=e.target;
-  if(t.dataset.seed!==undefined){st.names[+t.dataset.seed]=t.value;dirty=true;note="";draw()}
-  else if(t.dataset.s){st.score[t.dataset.s]=st.score[t.dataset.s]||["",""];st.score[t.dataset.s][+t.dataset.k]=t.value;dirty=true;note="";draw()}
+  if(t.dataset.seed!==undefined){st.names[+t.dataset.seed]=t.value;change()}
+  else if(t.dataset.s){st.score[t.dataset.s]=st.score[t.dataset.s]||["",""];st.score[t.dataset.s][+t.dataset.k]=t.value;change()}
 });
-window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue=""}});
 
-if(location.hash==="#admin"){ if(ls.get(TKEY)) canWrite=true; else needLogin=true; }
+if(location.hash==="#admin"){canWrite=true;try{const d=JSON.parse(ls.get(DKEY));if(d&&d.names)st=d}catch(e){}}
 draw();
 load();
-setInterval(load,60000);
+setInterval(load,30000);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)load()});
+window.addEventListener("hashchange",()=>location.reload());
 })();
 </script>
 </body>
