@@ -74,7 +74,10 @@ button.team{cursor:pointer}
 .team.tbd{color:var(--muted);font-weight:400;font-style:italic}
 .row.won{background:var(--winbg)} .row.won .team{color:var(--win);font-weight:700}
 .row.lost .team{color:var(--lose);text-decoration:line-through}
-.score{width:34px;font:700 13px var(--display);text-align:center;border:none;border-left:1px solid var(--line);background:transparent;color:var(--fg);padding:8px 2px;font-variant-numeric:tabular-nums}
+.score{width:34px;font:700 14px var(--display);text-align:center;border:none;border-left:1px solid var(--line);background:transparent;color:var(--fg);padding:8px 2px;font-variant-numeric:tabular-nums}
+input.score{width:38px;margin:0 6px;padding:4px 2px;border:1px solid var(--accent);border-radius:4px;background:var(--bg)}
+input.score::placeholder{color:var(--muted);font-weight:400}
+.row.won .score{color:var(--win)}
 .champ{margin-top:10px;font:700 15px var(--display);color:var(--accent);letter-spacing:.04em;min-height:20px}
 .hint{color:var(--muted);font-size:12px;margin:-4px 0 10px}
 .bar{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);
@@ -212,7 +215,7 @@ function matchHTML(id){
     const label=t?esc(t):esc(srcText(id,k));const tcls="team"+(t?"":" tbd");
     const team=(canWrite&&ready)?`<button type="button" class="${tcls}" data-m="${id}" data-k="${k}">${label}</button>`:`<span class="${tcls}">${label}</span>`;
     const sv=esc((st.score[id]||[])[k]||"");
-    const score=canWrite?`<input class="score" id="sc-${id}-${k}" data-s="${id}" data-k="${k}" inputmode="numeric" maxlength="2" aria-label="Счёт" value="${sv}">`:`<span class="score">${sv||"&nbsp;"}</span>`;
+    const score=canWrite?`<input class="score" id="sc-${id}-${k}" data-s="${id}" data-k="${k}" inputmode="numeric" maxlength="2" placeholder="–" aria-label="Счёт ${esc(label)}" value="${sv}">`:`<span class="score">${sv||"&nbsp;"}</span>`;
     return `<div class="${cls}">${team}${score}</div>`;
   }).join("");
   return `<div class="match${id==="GF"?" gf":""}"><div class="mid">${LABEL[id]}</div>${rows}</div>`;
@@ -237,7 +240,7 @@ function render(){
   <h2 class="section">Групповой этап</h2>
   <div class="groups">${GROUPS.map(groupHTML).join("")}</div>
   <h2 class="section">Плей-офф · верхняя сетка</h2>
-  ${canWrite?'<p class="hint">Слоты плей-офф заполняются сами, когда группа сыграна. Если в группе ничья по победам (1–1–1), впиши команду вручную.</p>'+seeds:""}
+  ${canWrite?'<p class="hint">Впиши счёт серии в рамки справа от команд (например 2 и 1) — победитель отметится сам. Слоты плей-офф заполняются сами, когда группа сыграна. Если в группе ничья по победам (1–1–1), впиши команду вручную.</p>'+seeds:""}
   <div class="scroll"><div class="band">${bandHTML("upper")}</div></div>
   <h2 class="section lower">Нижняя сетка</h2>
   <div class="scroll"><div class="band">${bandHTML("lower")}</div></div>
@@ -296,7 +299,10 @@ document.addEventListener("input",e=>{
   if(!canWrite) return;
   const t=e.target;
   if(t.dataset.seed!==undefined){st.names[+t.dataset.seed]=t.value;change()}
-  else if(t.dataset.s){st.score[t.dataset.s]=st.score[t.dataset.s]||["",""];st.score[t.dataset.s][+t.dataset.k]=t.value;change()}
+  else if(t.dataset.s){const id=t.dataset.s;t.value=t.value.replace(/\D/g,"");st.score[id]=st.score[id]||["",""];st.score[id][+t.dataset.k]=t.value;
+    const sc=st.score[id],p=parts(id);
+    if(sc[0]!==""&&sc[1]!==""&&+sc[0]!==+sc[1]&&p[0]&&p[1]) st.win[id]=+sc[0]>+sc[1]?p[0]:p[1];
+    change()}
 });
 
 if(location.hash==="#admin"){canWrite=true;try{const d=JSON.parse(ls.get(DKEY));if(d&&d.names)st=d}catch(e){}}
